@@ -29,7 +29,7 @@
   const API_BASE = (
     params.get("api") ||
     window.__API_BASE__ ||
-    ""
+    window.location.origin
   ).replace(/\/+$/, "");
 
   const zipInput = document.getElementById("zip");
@@ -103,13 +103,6 @@
   btn.addEventListener("click", async () => {
     hideError();
     resultEl.classList.remove("visible");
-
-    if (!API_BASE) {
-      showError(
-        "Не задан адрес API. Откройте страницу с параметром ?api=https://ваш-хост или задайте __API_BASE__ в index.html.",
-      );
-      return;
-    }
 
     const zip = zipInput.value.trim();
     if (!zip) {

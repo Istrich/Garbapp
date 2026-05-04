@@ -14,10 +14,11 @@ COPY backend /workspace/backend
 COPY garbage_data /workspace/garbage_data
 COPY scripts /workspace/scripts
 COPY knowledge /workspace/knowledge
+COPY telegram-miniapp /workspace/telegram-miniapp
 
 RUN mkdir -p /workspace/data/sources /workspace/knowledge/generated
 
 WORKDIR /workspace/backend
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

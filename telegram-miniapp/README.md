@@ -2,20 +2,32 @@
 
 Статическое веб-приложение для Telegram: загрузка фото + почтовый индекс → **`POST /api/v1/analyze`** (те же поля, что на вкладке «Тест по фото» в админке).
 
+В этом проекте мини-апп раздаётся самим FastAPI по URL **`/miniapp/`**.
+
 ## Что нужно
 
-1. **HTTPS** — Telegram открывает Mini App только по защищённому URL (продакшен-домен, Cloudflare Pages, Netlify, свой nginx и т.д.).
-2. Публичный URL **backend API** с CORS: в `backend` для мини-приложения должен быть разрешён origin страницы Mini App (или временно `GARBAGE_CORS_ORIGINS=*` только для отладки).
+1. **HTTPS** — Telegram открывает Mini App только по защищённому URL.
+2. Если мини-апп и API на одном домене (вариант Railway по умолчанию), CORS настраивать отдельно обычно не нужно.
 
 ## Настройка API
 
-**Вариант A.** Параметр в ссылке, которую даёте BotFather / кнопке бота:
+**Вариант A (рекомендуется, same-origin).**
+
+Просто давайте в BotFather ссылку на:
+
+```text
+https://<railway-domain>/miniapp/
+```
+
+Код возьмёт API как `window.location.origin`.
+
+**Вариант B.** Явный API-параметр в ссылке:
 
 ```text
 https://your-domain.example/telegram-miniapp/index.html?api=https://api.example.com
 ```
 
-**Вариант B.** В `index.html` задайте:
+**Вариант C.** В `index.html` задайте:
 
 ```html
 <script>
@@ -28,11 +40,11 @@ https://your-domain.example/telegram-miniapp/index.html?api=https://api.example.
 ## Локальная проверка
 
 1. Поднимите API (`docker compose --profile backend up` или uvicorn).
-2. Раздайте статику Mini App локально с HTTPS (например `ngrok http 8080`) или временно задеплойте файлы из этой папки.
+2. Откройте `http://localhost:8000/miniapp/` (локально) или публичный HTTPS URL после деплоя.
 
 ## Подключение к боту
 
-1. [@BotFather](https://t.me/BotFather) → **/newapp** или настройки бота → **Mini Apps** → указать URL на **`index.html`** (с параметром `?api=...` при необходимости).
+1. [@BotFather](https://t.me/BotFather) → **/newapp** или настройки бота → **Mini Apps** → указать URL **`https://<railway-domain>/miniapp/`**.
 2. В меню бота добавьте кнопку с типом **Web App** и тем же URL.
 
 ## Файлы

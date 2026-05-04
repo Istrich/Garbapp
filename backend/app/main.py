@@ -20,10 +20,12 @@ from qdrant_client import AsyncQdrantClient
 from app.api.v1.router import api_router
 from app.config import get_settings
 from app.logging_setup import configure_logging
+from app.paths import REPO_ROOT
 
 LOG = logging.getLogger(__name__)
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
+_MINIAPP_DIR = REPO_ROOT / "telegram-miniapp"
 
 _QDRANT_PROBE_ATTEMPTS = 8
 _QDRANT_PROBE_DELAY_S = 2.0
@@ -162,6 +164,15 @@ def create_app() -> FastAPI:
         StaticFiles(directory=str(_STATIC_DIR)),
         name="static",
     )
+
+    if _MINIAPP_DIR.is_dir():
+        app.mount(
+            "/miniapp",
+            StaticFiles(directory=str(_MINIAPP_DIR), html=True),
+            name="miniapp",
+        )
+    else:
+        LOG.warning("Mini App directory not found: %s", _MINIAPP_DIR)
 
     @app.get("/admin", tags=["system"], include_in_schema=False)
     async def admin_ui() -> FileResponse:

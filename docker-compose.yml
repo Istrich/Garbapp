@@ -44,6 +44,8 @@ services:
       - ./knowledge:/workspace/knowledge
       # Код приложения (main.py, API, admin.html) — правки на хосте без пересборки образа
       - ./backend/app:/workspace/backend/app
+      # Telegram mini app: правки UI без пересборки образа
+      - ./telegram-miniapp:/workspace/telegram-miniapp
     networks:
       - garbaje_net
     depends_on:
