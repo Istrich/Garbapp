@@ -24,7 +24,7 @@
     button.primary { background: #1769aa; color: #fff; }
     button.secondary { background: #e8eef5; color: #1769aa; }
     button:disabled { opacity: 0.55; cursor: not-allowed; }
-    #log { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 8px; min-height: 5rem; margin-top: 1rem; }
+    #log, #zipImportLog { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 8px; min-height: 5rem; margin-top: 1rem; }
     .error { color: #ffb4b4; }
     .ok { color: #98ec98; }
     .districtCustomWrap { display: none; margin-top: 0.5rem; }
@@ -114,11 +114,12 @@
     <div class="token-block">
       <label for="token">Admin-Token</label>
       <input id="token" type="password" autocomplete="off" placeholder="GARBAGE_ADMIN_API_TOKEN / ADMIN_API_TOKEN" />
-      <p class="muted" style="margin:0.35rem 0 0; font-size:0.8rem;">Нужен для вкладок «Индексация PDF» и «Промпты ИИ».</p>
+      <p class="muted" style="margin:0.35rem 0 0; font-size:0.8rem;">Нужен для вкладок «Индексация PDF», «База индексов (KEN)» и «Промпты ИИ».</p>
     </div>
 
     <nav class="tabs" role="tablist" aria-label="Разделы">
       <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-rag" id="tab-rag" data-tab="rag">Индексация PDF</button>
+      <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-zipdb" id="tab-zipdb" data-tab="zipdb">База индексов (KEN)</button>
       <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-test" id="tab-test" data-tab="test">Тест по фото</button>
       <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-prompts" id="tab-prompts" data-tab="prompts">Промпты ИИ</button>
     </nav>
@@ -157,6 +158,34 @@
 
       <strong style="display:block;margin-top:1.25rem;">Ответ API</strong>
       <div id="log"></div>
+    </div>
+
+    <div id="panel-zipdb" class="tab-panel" role="tabpanel" aria-labelledby="tab-zipdb" hidden>
+      <p class="muted" style="margin-top:0;">
+        Загрузите официальный файл <strong>KEN_ALL_ROME.CSV</strong> (как в папке проекта <code>Index base/</code>).
+        Таблица <code>zip_mapping</code> в <code>data/zip_codes.db</code> будет <strong>полностью пересоздана</strong> из файла (старые строки удаляются).
+        Кодировка оригинала Japan Post — обычно <code>shift_jis</code>.
+      </p>
+
+      <label for="kenEncoding">Кодировка CSV</label>
+      <select id="kenEncoding">
+        <option value="shift_jis" selected>shift_jis (Japan Post)</option>
+        <option value="utf-8">utf-8</option>
+      </select>
+
+      <label for="kenCsv">Файл KEN_ALL_ROME.CSV</label>
+      <input id="kenCsv" type="file" accept=".csv,text/csv" />
+
+      <div class="row">
+        <button type="button" class="primary" id="btnImportKen">Импортировать в zip_codes.db</button>
+      </div>
+      <p class="muted" style="margin-top:0.75rem;font-size:0.8rem;">
+        Большой файл (сотни тысяч строк) может обрабатываться до нескольких минут — не закрывайте вкладку до ответа сервера.
+        На Railway без volume для <code>/workspace/data</code> база пропадёт при редеплое — при необходимости смонтируйте volume на каталог данных.
+      </p>
+
+      <strong style="display:block;margin-top:1.25rem;">Ответ API</strong>
+      <div id="zipImportLog"></div>
     </div>
 
     <div id="panel-test" class="tab-panel" role="tabpanel" aria-labelledby="tab-test" hidden>
@@ -286,6 +315,7 @@
       document.querySelectorAll(".tab-panel").forEach((p) => {
         const show =
           (activeTab === "rag" && p.id === "panel-rag") ||
+          (activeTab === "zipdb" && p.id === "panel-zipdb") ||
           (activeTab === "test" && p.id === "panel-test") ||
           (activeTab === "prompts" && p.id === "panel-prompts");
         p.classList.toggle("active", show);
@@ -304,7 +334,7 @@
 
     (function initTabFromQuery() {
       const tab = new URLSearchParams(window.location.search).get("tab");
-      if (tab === "test" || tab === "prompts" || tab === "rag") {
+      if (tab === "test" || tab === "prompts" || tab === "rag" || tab === "zipdb") {
         applyTabVisibility(tab);
       }
     })();
@@ -387,6 +417,59 @@
         setPromptStatus("Сохранено в data/ai_prompts.json.", "ok");
       } catch (e) {
         setPromptStatus(String(e.message || e), "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    const zipImportLogEl = document.getElementById("zipImportLog");
+    function zipLog(msg, cls) {
+      const span = document.createElement("span");
+      if (cls) span.className = cls;
+      span.textContent = msg + "\n";
+      zipImportLogEl.appendChild(span);
+      zipImportLogEl.scrollTop = zipImportLogEl.scrollHeight;
+    }
+
+    document.getElementById("btnImportKen").addEventListener("click", async () => {
+      zipImportLogEl.innerHTML = "";
+      const btn = document.getElementById("btnImportKen");
+      const fileInput = document.getElementById("kenCsv");
+      if (!fileInput.files || !fileInput.files[0]) {
+        zipLog("Выберите CSV файл.", "error");
+        return;
+      }
+      btn.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append("ken_csv", fileInput.files[0]);
+        fd.append("encoding", document.getElementById("kenEncoding").value);
+        const res = await fetch(window.location.origin + "/api/v1/admin/zip-db/import", {
+          method: "POST",
+          headers: authHeaders(),
+          body: fd,
+        });
+        const text = await res.text();
+        let body;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = { detail: text };
+        }
+        if (!res.ok) {
+          const detail = body.detail;
+          const msg =
+            typeof detail === "string"
+              ? detail
+              : Array.isArray(detail)
+                ? detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+                : JSON.stringify(body);
+          throw new Error(res.status + " " + msg);
+        }
+        zipLog("Импорт выполнен.", "ok");
+        zipLog(JSON.stringify(body, null, 2), "ok");
+      } catch (err) {
+        zipLog(String(err.message || err), "error");
       } finally {
         btn.disabled = false;
       }

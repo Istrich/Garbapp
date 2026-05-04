@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+import sqlite3
+import tempfile
 from pathlib import Path
 from typing import Annotated
 
@@ -21,10 +24,11 @@ from fastapi import (
 from app.api.deps import get_zip_lookup, require_admin_token
 from app.config import Settings, get_settings
 from app.paths import REPO_ROOT
-from app.schemas.admin import AdminIngestAccepted, AdminUploadResponse
+from app.schemas.admin import AdminIngestAccepted, AdminUploadResponse, AdminZipDbImportResult
 from app.schemas.prompts import AnalyzePromptsPayload
 from app.services.admin_rag_pipeline import run_full_ingest_pipeline
 from app.services.analyze_prompts import load_analyze_prompts, save_analyze_prompts
+from app.services.ken_csv_import import load_csv_into_sqlite, lookup_district_id
 from app.services.postal_district import normalize_strict_district_id, resolve_zip_or_district
 from app.services.zip_lookup import ZipLookupService
 
@@ -37,6 +41,8 @@ router = APIRouter(
 )
 
 _MAX_PDF_BYTES = 35 * 1024 * 1024
+_MAX_KEN_CSV_BYTES = 512 * 1024 * 1024
+_ALLOWED_KEN_ENCODINGS = frozenset({"shift_jis", "utf-8"})
 
 
 def _safe_pdf_filename(original: str) -> str:
@@ -72,6 +78,87 @@ def _enqueue_ingest(
         district_id=normalized,
         recreate_collection=recreate,
     )
+
+
+@router.post("/zip-db/import", response_model=AdminZipDbImportResult)
+async def import_zip_ken_csv(
+    settings: Annotated[Settings, Depends(get_settings)],
+    ken_csv: Annotated[UploadFile, File(description="KEN_ALL_ROME.CSV (Japan Post / romaji)")],
+    encoding: Annotated[str, Form(description="Кодировка файла: shift_jis или utf-8")] = "shift_jis",
+) -> AdminZipDbImportResult:
+    """
+    Полная перезапись ``zip_codes.db`` из загруженного CSV (формат KEN_ALL_ROME).
+
+    Файл из репозитория ``Index base/KEN_ALL_ROME.CSV`` подходит без изменений.
+    """
+    enc = encoding.strip().lower()
+    if enc not in _ALLOWED_KEN_ENCODINGS:
+        raise HTTPException(
+            status_code=422,
+            detail="Параметр encoding: допустимы только shift_jis или utf-8.",
+        )
+
+    name_lower = (ken_csv.filename or "").lower()
+    if not name_lower.endswith(".csv"):
+        raise HTTPException(status_code=415, detail="Ожидается файл с расширением .csv")
+
+    suffix = Path(ken_csv.filename or "ken.csv").suffix or ".csv"
+    tmp_csv: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp_csv = Path(tmp.name)
+            total = 0
+            while True:
+                chunk = await ken_csv.read(1024 * 1024)
+                if not chunk:
+                    break
+                total += len(chunk)
+                if total > _MAX_KEN_CSV_BYTES:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"CSV слишком большой (лимит {_MAX_KEN_CSV_BYTES // (1024 * 1024)} МиБ).",
+                    )
+                tmp.write(chunk)
+
+        db_path = settings.resolved_zip_db_path
+
+        def _import() -> int:
+            return load_csv_into_sqlite(tmp_csv, db_path, encoding=enc)
+
+        try:
+            rows = await asyncio.to_thread(_import)
+        except sqlite3.Error as exc:
+            LOG.exception("ZIP DB import SQLite failure")
+            raise HTTPException(
+                status_code=500,
+                detail="Ошибка SQLite при импорте (проверьте свободное место и права на каталог data).",
+            ) from exc
+
+        sanity = await asyncio.to_thread(lookup_district_id, db_path, "1600022")
+
+        try:
+            rel = db_path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+        except ValueError:
+            rel = str(db_path.resolve())
+
+        LOG.info("Admin ZIP DB import: rows=%s db=%s encoding=%s", rows, rel, enc)
+        return AdminZipDbImportResult(
+            rows_imported=rows,
+            sqlite_relative_path=rel,
+            sanity_zip_1600022=sanity,
+        )
+    except UnicodeDecodeError as exc:
+        LOG.warning("ZIP KEN CSV encoding error (%s): %s", enc, exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Не удалось прочитать CSV как {enc}. Попробуйте другую кодировку.",
+        ) from exc
+    finally:
+        if tmp_csv is not None:
+            try:
+                tmp_csv.unlink(missing_ok=True)
+            except OSError as exc:
+                LOG.warning("Temp CSV cleanup failed: %s", exc)
 
 
 @router.post("/upload", response_model=AdminUploadResponse)

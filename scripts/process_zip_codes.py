@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import logging
 import sqlite3
 import sys
@@ -12,63 +11,18 @@ from pathlib import Path
 
 # Repo root = parent of scripts/
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+BACKEND = ROOT / "backend"
+for p in (BACKEND, ROOT):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
-from garbage_data.municipalities import municipality_romaji_to_district_id
+from app.services.ken_csv_import import load_csv_into_sqlite
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 LOG = logging.getLogger(__name__)
 
 DEFAULT_CSV = ROOT / "Index base" / "KEN_ALL_ROME.CSV"
 DEFAULT_DB = ROOT / "data" / "zip_codes.db"
-
-
-def ensure_schema(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS zip_mapping (
-            zip_code TEXT NOT NULL PRIMARY KEY,
-            district_id TEXT NOT NULL
-        )
-        """
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_zip_mapping_zip ON zip_mapping (zip_code)"
-    )
-
-
-def load_csv_into_sqlite(csv_path: Path, db_path: Path, encoding: str = "shift_jis") -> int:
-    """Insert rows from CSV into SQLite. Returns number of rows processed."""
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-
-    inserted = 0
-    with sqlite3.connect(db_path) as conn:
-        ensure_schema(conn)
-        conn.execute("DELETE FROM zip_mapping")
-
-        with csv_path.open(encoding=encoding, newline="") as fh:
-            reader = csv.reader(fh)
-            batch: list[tuple[str, str]] = []
-            for row in reader:
-                if len(row) < 6:
-                    LOG.warning("Skipping short row (%s columns)", len(row))
-                    continue
-                zip_code = row[0].strip().strip('"')
-                municipality_romaji = row[5].strip().strip('"')
-                district_id = municipality_romaji_to_district_id(municipality_romaji)
-                if not zip_code or not district_id:
-                    continue
-                batch.append((zip_code, district_id))
-                inserted += 1
-
-            conn.executemany(
-                "INSERT OR REPLACE INTO zip_mapping (zip_code, district_id) VALUES (?, ?)",
-                batch,
-            )
-        conn.commit()
-
-    return inserted
 
 
 def parse_args() -> argparse.Namespace:
