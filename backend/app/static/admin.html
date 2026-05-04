@@ -113,8 +113,11 @@
   <section>
     <div class="token-block">
       <label for="token">Admin-Token</label>
-      <input id="token" type="password" autocomplete="off" placeholder="GARBAGE_ADMIN_API_TOKEN / ADMIN_API_TOKEN" />
-      <p class="muted" style="margin:0.35rem 0 0; font-size:0.8rem;">Нужен для вкладок «Индексация PDF», «База индексов (KEN)» и «Промпты ИИ».</p>
+      <input id="token" type="password" autocomplete="off" placeholder="если на сервере не задан HTTP Basic — см. подсказку ниже" />
+      <p class="muted" style="margin:0.35rem 0 0; font-size:0.8rem;">
+        Если на сервере заданы <code>ADMIN_HTTP_USER</code> и <code>ADMIN_HTTP_PASSWORD</code> (или с префиксом <code>GARBAGE_</code>), браузер запросит логин/пароль при открытии этой страницы; дальше запросы к API пойдут с тем же HTTP Basic — поле токена можно оставить пустым.
+        Если эти переменные <strong>не</strong> заданы, укажите секрет из <code>GARBAGE_ADMIN_API_TOKEN</code> / <code>ADMIN_API_TOKEN</code> — он нужен для операций «Индексация PDF», «База индексов (KEN)» и «Промпты ИИ».
+      </p>
     </div>
 
     <nav class="tabs" role="tablist" aria-label="Разделы">
@@ -349,6 +352,7 @@
       setPromptStatus("");
       const res = await fetch(window.location.origin + "/api/v1/admin/prompts/analyze", {
         method: "GET",
+        credentials: "same-origin",
         headers: authHeaders(),
       });
       const text = await res.text();
@@ -394,6 +398,7 @@
       try {
         const res = await fetch(window.location.origin + "/api/v1/admin/prompts/analyze", {
           method: "PUT",
+          credentials: "same-origin",
           headers: { ...authHeaders(), "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
@@ -446,6 +451,7 @@
         fd.append("encoding", document.getElementById("kenEncoding").value);
         const res = await fetch(window.location.origin + "/api/v1/admin/zip-db/import", {
           method: "POST",
+          credentials: "same-origin",
           headers: authHeaders(),
           body: fd,
         });
@@ -499,6 +505,7 @@
 
         const res = await fetch(window.location.origin + "/api/v1/admin/upload", {
           method: "POST",
+          credentials: "same-origin",
           headers: authHeaders(),
           body: fd,
         });
@@ -534,6 +541,7 @@
 
         const res = await fetch(url, {
           method: "GET",
+          credentials: "same-origin",
           headers: authHeaders(),
         });
         const text = await res.text();

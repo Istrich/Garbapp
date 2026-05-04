@@ -21,7 +21,7 @@ from fastapi import (
     UploadFile,
 )
 
-from app.api.deps import get_zip_lookup, require_admin_token
+from app.api.deps import get_zip_lookup, require_admin_access
 from app.config import Settings, get_settings
 from app.paths import REPO_ROOT
 from app.schemas.admin import AdminIngestAccepted, AdminUploadResponse, AdminZipDbImportResult
@@ -37,7 +37,7 @@ LOG = logging.getLogger(__name__)
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    dependencies=[Depends(require_admin_token)],
+    dependencies=[Depends(require_admin_access)],
 )
 
 _MAX_PDF_BYTES = 35 * 1024 * 1024

@@ -68,6 +68,16 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("GARBAGE_ADMIN_API_TOKEN", "ADMIN_API_TOKEN"),
         description="Токен для POST/GET /admin/* (заголовок X-Admin-Token или Admin-Token)",
     )
+    admin_http_user: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ADMIN_HTTP_USER", "GARBAGE_ADMIN_HTTP_USER"),
+        description="HTTP Basic: логин для /admin и /api/v1/admin/* (вместе с admin_http_password)",
+    )
+    admin_http_password: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("ADMIN_HTTP_PASSWORD", "GARBAGE_ADMIN_HTTP_PASSWORD"),
+        description="HTTP Basic: пароль (вместе с admin_http_user)",
+    )
 
     @field_validator(
         "zip_db_path",
@@ -75,6 +85,8 @@ class Settings(BaseSettings):
         "qdrant_url",
         "qdrant_api_key",
         "admin_api_token",
+        "admin_http_user",
+        "admin_http_password",
         mode="before",
     )
     @classmethod

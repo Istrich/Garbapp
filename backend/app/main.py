@@ -10,13 +10,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from openai import AsyncOpenAI
 from qdrant_client import AsyncQdrantClient
 
+from app.api.deps import require_admin_page_access
 from app.api.v1.router import api_router
 from app.config import get_settings
 from app.logging_setup import configure_logging
@@ -174,7 +175,12 @@ def create_app() -> FastAPI:
     else:
         LOG.warning("Mini App directory not found: %s", _MINIAPP_DIR)
 
-    @app.get("/admin", tags=["system"], include_in_schema=False)
+    @app.get(
+        "/admin",
+        tags=["system"],
+        include_in_schema=False,
+        dependencies=[Depends(require_admin_page_access)],
+    )
     async def admin_ui() -> FileResponse:
         """Простая админ-страница для загрузки PDF и запуска ingest."""
         html_path = _STATIC_DIR / "admin.html"
@@ -186,7 +192,12 @@ def create_app() -> FastAPI:
             headers={"Cache-Control": "no-store, max-age=0"},
         )
 
-    @app.get("/admin/prompts", tags=["system"], include_in_schema=False)
+    @app.get(
+        "/admin/prompts",
+        tags=["system"],
+        include_in_schema=False,
+        dependencies=[Depends(require_admin_page_access)],
+    )
     async def prompts_legacy_redirect() -> RedirectResponse:
         """Старая ссылка: промпты перенесены во вкладку на /admin."""
         return RedirectResponse(
