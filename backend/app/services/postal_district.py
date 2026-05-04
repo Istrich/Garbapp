@@ -62,8 +62,9 @@ async def resolve_zip_or_district(
             ) from None
 
         if resolved is None:
+            # 422: не путать с «нет маршрута» (404) в логах прокси и мониторинга.
             raise HTTPException(
-                status_code=404,
+                status_code=422,
                 detail=f"Почтовый индекс {normalized_zip} не найден в базе данных.",
             )
 
