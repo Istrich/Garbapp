@@ -107,24 +107,30 @@ def _assert_semantics(body: dict[str, Any], *, strict: bool) -> list[str]:
     """Мягкие эвристики; при ``strict`` превращаются в ошибки."""
     warnings: list[str] = []
     vision = body.get("vision") or {}
-    obj = str(vision.get("object", "")).lower()
-    material = str(vision.get("material", "")).lower()
+    items = vision.get("items") if isinstance(vision.get("items"), list) else []
+    names_mats = " ".join(
+        f"{str(it.get('name', '')).lower()} {str(it.get('material', '')).lower()}"
+        for it in items
+        if isinstance(it, dict)
+    )
     verdict = str(body.get("verdict_ru", "")).lower()
-    size_cm = vision.get("size_cm")
+    size_max = vision.get("size_max_cm")
 
     if strict:
-        plastic_hit = "plastic" in material or "пластик" in verdict
-        bucket_hit = any(k in obj for k in ("bucket", "pail", "bin", "container"))
+        plastic_hit = "plastic" in names_mats or "пластик" in verdict
+        bucket_hit = any(
+            k in names_mats for k in ("bucket", "pail", "bin", "container")
+        )
         verdict_hit = any(
             token in verdict
             for token in ("ресурс", "пластик", "утилиз")
         )
         if not bucket_hit:
-            warnings.append(f"[strict] Vision object '{obj}' не похож на ведро.")
+            warnings.append(f"[strict] Vision items не похожи на ведро: {names_mats!r}.")
         if not plastic_hit:
-            warnings.append("[strict] Не найден явный признак пластика в material/вердикте.")
-        if isinstance(size_cm, (int, float)) and not (15 <= float(size_cm) <= 45):
-            warnings.append(f"[strict] size_cm={size_cm} вне диапазона 15–45 см.")
+            warnings.append("[strict] Не найден явный признак пластика в items/вердикте.")
+        if isinstance(size_max, (int, float)) and not (15 <= float(size_max) <= 45):
+            warnings.append(f"[strict] size_max_cm={size_max} вне диапазона 15–45 см.")
         if not verdict_hit:
             warnings.append("[strict] Вердикт не содержит ожидаемых ключевых слов.")
 

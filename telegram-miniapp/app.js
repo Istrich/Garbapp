@@ -161,12 +161,27 @@
           : escapeHtml(did || "");
 
       const v = body.vision || {};
+      const items = Array.isArray(v.items) ? v.items : [];
+      let partsRows = "";
+      if (items.length) {
+        items.forEach((it, i) => {
+          const line = [
+            it && it.name ? escapeHtml(String(it.name)) : "—",
+            it && it.material ? escapeHtml(String(it.material)) : "—",
+            "mark: " + (it && it.mark != null ? escapeHtml(String(it.mark)) : "—"),
+            it && it.is_clean ? "чистая" : "не чистая",
+          ].join(" · ");
+          partsRows += `<dt>Часть ${i + 1}</dt><dd>${line}</dd>`;
+        });
+      } else {
+        partsRows = `<dt>Части</dt><dd>—</dd>`;
+      }
       let detailsHtml = `
         <dl>
-          <dt>Предмет</dt><dd>${escapeHtml(v.object || "—")}</dd>
-          <dt>Материал</dt><dd>${escapeHtml(v.material || "—")}</dd>
-          <dt>Размер (см)</dt><dd>${v.size_cm != null ? escapeHtml(String(v.size_cm)) : "—"}</dd>
-          <dt>Чистота</dt><dd>${v.is_clean ? "да" : "нет"}</dd>
+          ${partsRows}
+          <dt>size_max_cm</dt><dd>${v.size_max_cm != null ? escapeHtml(String(v.size_max_cm)) : "—"}</dd>
+          <dt>Батареи</dt><dd>${v.has_batteries ? "да" : "нет"}</dd>
+          <dt>Опасно</dt><dd>${v.is_dangerous ? "да" : "нет"}</dd>
         </dl>`;
       if (Array.isArray(body.rag_excerpts) && body.rag_excerpts.length) {
         detailsHtml +=

@@ -243,7 +243,7 @@
       <p class="muted" style="margin-top:0;">Сохраняется в <code>data/ai_prompts.json</code>. Следующий вызов «Тест по фото» подхватит без перезапуска API.</p>
 
       <label for="visionSystem">Системный промпт — распознавание фото (Vision)</label>
-      <span class="prompt-hint">JSON: object, material, size_cm, is_clean. Обычно на английском.</span>
+      <span class="prompt-hint">JSON: items[] (name, material, mark, is_clean), size_max_cm, has_batteries, is_dangerous. Обычно на английском.</span>
       <textarea id="visionSystem" class="prompt-area lg" spellcheck="false"></textarea>
 
       <label for="visionUser">Пользовательский текст к изображению (Vision)</label>
@@ -653,19 +653,31 @@
 
         const v = body.vision || {};
         visionDl.innerHTML = "";
-        [
-          ["Предмет", v.object],
-          ["Материал", v.material],
-          ["Размер (см)", v.size_cm != null ? String(v.size_cm) : "—"],
-          ["Чистый / без остатков", v.is_clean ? "да" : "нет"],
-        ].forEach(([dt, dd]) => {
+        function addVisionRow(dt, dd) {
           const dti = document.createElement("dt");
           dti.textContent = dt;
           const ddi = document.createElement("dd");
-          ddi.textContent = dd != null ? dd : "—";
+          ddi.textContent = dd != null && dd !== "" ? String(dd) : "—";
           visionDl.appendChild(dti);
           visionDl.appendChild(ddi);
-        });
+        }
+        const items = Array.isArray(v.items) ? v.items : [];
+        if (items.length) {
+          items.forEach((it, i) => {
+            const line = [
+              it.name || "—",
+              it.material || "—",
+              "mark: " + (it.mark != null ? it.mark : "—"),
+              it.is_clean ? "чистая" : "не чистая",
+            ].join(" · ");
+            addVisionRow("Часть " + (i + 1), line);
+          });
+        } else {
+          addVisionRow("Части (items)", "(нет в ответе)");
+        }
+        addVisionRow("size_max_cm (см)", v.size_max_cm != null ? String(v.size_max_cm) : "—");
+        addVisionRow("Батареи (has_batteries)", v.has_batteries ? "да" : "нет");
+        addVisionRow("Опасно (is_dangerous)", v.is_dangerous ? "да" : "нет");
         visionWrap.style.display = "block";
 
         const excerpts = body.rag_excerpts || [];

@@ -65,16 +65,23 @@ async def embed_query(client: AsyncOpenAI, *, text: str, model: str) -> list[flo
 
 def build_retrieval_query(district_id: str, vision: VisionAnalysis) -> str:
     """Natural-language query aligned with indexed Markdown chunks."""
+    part_bits: list[str] = []
+    for it in vision.items:
+        part_bits.append(
+            f"{it.name} ({it.material}, mark {it.mark}, clean={'yes' if it.is_clean else 'no'})"
+        )
+    parts_block = "; ".join(part_bits)
     size_part = (
-        f"{vision.size_cm:.1f} cm"
-        if vision.size_cm is not None
-        else "unknown size_cm"
+        f"{vision.size_max_cm:.1f} cm max"
+        if vision.size_max_cm is not None
+        else "unknown size_max_cm"
     )
     return (
         f"Municipal waste sorting rules for district_id={district_id}. "
-        f"Item {vision.object}, material {vision.material}, "
-        f"estimated longest dimension {size_part}, "
-        f"clean={'yes' if vision.is_clean else 'no'}. "
+        f"Components: {parts_block}. "
+        f"Largest part dimension ~{size_part}. "
+        f"batteries={'yes' if vision.has_batteries else 'no'}, "
+        f"dangerous={'yes' if vision.is_dangerous else 'no'}. "
         "Plastic resource bags, burnable trash, metal ceramic glass, bulky waste."
     )
 
@@ -190,11 +197,12 @@ async def run_analyze(
         system_prompt=prompts.vision_system_prompt,
         user_prompt=prompts.vision_user_prompt,
     )
+    first = vision.items[0].name if vision.items else "?"
     LOG.info(
-        "Vision result district=%s object=%s material=%s",
+        "Vision result district=%s items=%s first=%s",
         district_id,
-        vision.object,
-        vision.material,
+        len(vision.items),
+        first,
     )
 
     rag_excerpts = await search_rules(qdrant, openai, settings=settings, district_id=district_id, vision=vision)

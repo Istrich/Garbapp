@@ -4,40 +4,72 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import AliasChoices, BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
-class VisionAnalysis(BaseModel):
-    """Structured output from GPT-4o vision (Step 1)."""
+class VisionItem(BaseModel):
+    """Один компонент / часть отхода (капсула Vision)."""
 
-    object: str = Field(..., description="Detected item name (English noun)")
-    material: str = Field(..., description="Primary material (English)")
-    size_cm: float | None = Field(
-        default=None,
-        description="Estimated longest dimension in centimeters",
+    name: str = Field(..., description="Короткое английское имя части")
+    material: str = Field(..., description="Основной материал (plastic, metal, …)")
+    mark: str = Field(
+        ...,
+        description='Маркировка переработки: "プラ", "PET", "none" и т.д.',
     )
     is_clean: bool = Field(
         ...,
-        validation_alias=AliasChoices("is_clean", "clean"),
-        description="Whether the item appears rinsed / low residue",
+        description="true если ополаскивали / без заметных остатков еды",
     )
 
-    @field_validator("size_cm", mode="before")
+    @field_validator("name", "material", "mark", mode="before")
     @classmethod
-    def coerce_size(cls, value: Any) -> float | None:
+    def strip_strings(cls, value: Any) -> Any:
+        if value is None:
+            return value
+        if not isinstance(value, str):
+            return value
+        return value.strip()
+
+    @field_validator("name", "material", mode="after")
+    @classmethod
+    def nonempty(cls, value: str) -> str:
+        if not value:
+            raise ValueError("must not be empty")
+        return value
+
+    @field_validator("mark", mode="after")
+    @classmethod
+    def mark_fallback(cls, value: str) -> str:
+        return value if value else "none"
+
+
+class VisionAnalysis(BaseModel):
+    """Structured output from GPT-4o vision (Step 1) — несколько компонентов + флаги."""
+
+    items: list[VisionItem] = Field(
+        ...,
+        min_length=1,
+        description="Разбор по отдельным частям (бутылка, крышка, этикетка, …)",
+    )
+    size_max_cm: float | None = Field(
+        default=None,
+        description="Оценка самой длинной стороны самой крупной части, см",
+    )
+    has_batteries: bool = Field(
+        ...,
+        description="true если электроника / есть батарея",
+    )
+    is_dangerous: bool = Field(
+        ...,
+        description="true если опасно (битое стекло, иглы, баллон под давлением)",
+    )
+
+    @field_validator("size_max_cm", mode="before")
+    @classmethod
+    def coerce_size_max(cls, value: Any) -> float | None:
         if value is None or value == "":
             return None
         return float(value)
-
-    @field_validator("object", "material", mode="before")
-    @classmethod
-    def nonempty_strip(cls, value: Any) -> str:
-        if not isinstance(value, str):
-            raise TypeError("expected string")
-        stripped = value.strip()
-        if not stripped:
-            raise ValueError("must not be empty")
-        return stripped
 
 
 class AnalyzeResponse(BaseModel):
