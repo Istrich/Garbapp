@@ -1,0 +1,2 @@
+# Optional stack for PDF → Markdown extraction (scripts/extract_shinjuku_pdf.py).
+pymupdf4llm>=0.0.17

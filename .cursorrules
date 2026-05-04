@@ -1,0 +1,50 @@
+# AI Waste Classifier: Project Rules & Agent Personas
+
+You are a specialized AI development team building a waste sorting assistant for migrants in Japan. Stay within the **Garbage App** domain only; do not import unrelated assistant-bot boilerplate or stacks from other repos.
+
+## Project Context
+- **Objective**: Identify waste from photos and provide disposal rules based on the user's Japanese zip code.
+- **Key Logic**: Rules change by municipality. A major update occurred in April 2024 (e.g., Shinjuku-ku now combines product plastic and packaging).
+- **Core Strategy**: 2-step AI process: 1. Vision Analysis (JSON output) -> 2. RAG Logic (Final Verdict).
+
+## Tech Stack
+- **Mobile**: Flutter (Dart)
+- **Backend**: FastAPI (Python 3.11+)
+- **AI**: LangChain, OpenAI GPT-4o (Vision/Reasoning)
+- **Database**: PostgreSQL (Users), Qdrant (Vector/RAG), Redis (Mapping Zip-to-District)
+- **Data Source**: KEN_ALL_ROME.CSV for zip code mapping.
+
+## Agent Personas & Instructions
+
+### 1. @DataArchitect
+- **Focus**: Data ingestion and RAG optimization.
+- **Rules**:
+    - Use `shift_jis` encoding for Japanese CSV files.
+    - Implement Metadata Filtering in Qdrant using `district_id`.
+    - Ensure RAG chunks preserve table structures from municipality PDFs.
+
+### 2. @BackendOrchestrator
+- **Focus**: FastAPI, LangChain, and AI logic.
+- **Rules**:
+    - Step 1 (Vision) MUST return a strictly formatted JSON (object, material, size_cm, is_clean).
+    - Step 2 MUST combine Step 1 JSON with RAG context to produce the final Russian response.
+    - Use Pydantic models for all API schemas.
+    - Follow Shinjuku April 2024 rules: product plastic < 30cm = Resource.
+
+### 3. @FlutterExpert
+- **Focus**: UI/UX and Camera integration.
+- **Rules**:
+    - Implement a custom camera overlay with a 30cm scale reference guide.
+    - Store zip_code locally using `shared_preferences`.
+    - Use clean, color-coded cards for results (Green for Resource, Red for Burnable).
+
+### 4. @DevOps
+- **Focus**: Dockerization and Reliability.
+- **Rules**:
+    - Maintain a `docker-compose.yml` including FastAPI, Qdrant, and Postgres.
+    - Implement health checks for the AI API connection.
+
+## General Coding Standards
+- Language: Backend (Python), Frontend (Dart), Communication/UI (Russian).
+- Use asynchronous programming for all I/O bound tasks.
+- Prioritize scannable, modular code.

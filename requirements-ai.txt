@@ -1,0 +1,4 @@
+# AI stack: embeddings → Qdrant (scripts/init_vector_db.py).
+openai>=1.59.0
+qdrant-client>=1.12.0
+langchain-text-splitters>=0.3.5

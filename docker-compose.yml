@@ -1,0 +1,59 @@
+# Qdrant for RAG / vector search (PHASE_1_DATA.md §3, Stack.md).
+# Backend (FastAPI) should join `garbaje_net` and use QDRANT_URL=http://qdrant:6333
+#
+# Запуск API вместе с Qdrant и примонтированной папкой data (в т.ч. data/sources для PDF):
+#   docker compose --profile backend up -d --build
+# Только Qdrant:
+#   docker compose up -d qdrant
+
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    container_name: garbaje-qdrant
+    restart: unless-stopped
+    environment:
+      # If empty, Qdrant accepts requests without an api-key header (dev only).
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-}
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    networks:
+      - garbaje_net
+
+  backend:
+    profiles: ["backend"]
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: garbaje-backend
+    restart: unless-stopped
+    # Автоперезапуск uvicorn при правках ./backend/app (маршруты, HTML без ручного restart)
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    env_file:
+      - .env
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      GARBAGE_QDRANT_HTTP_API_KEY: ${GARBAGE_QDRANT_HTTP_API_KEY:-1}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      # Вся data: zip_codes.db, sources/{district}/ PDF, и т.д. — доступна и на хосте, и в контейнере
+      - ./data:/workspace/data
+      - ./knowledge:/workspace/knowledge
+      # Код приложения (main.py, API, admin.html) — правки на хосте без пересборки образа
+      - ./backend/app:/workspace/backend/app
+    networks:
+      - garbaje_net
+    depends_on:
+      - qdrant
+
+networks:
+  garbaje_net:
+    driver: bridge
+    name: garbaje_net
+
+volumes:
+  qdrant_storage:
+    name: garbaje_qdrant_storage

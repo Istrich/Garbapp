@@ -1,0 +1,13 @@
+# Secrets / local env
+.env
+
+# Generated local artifacts
+data/*.db
+data/sources/*.pdf
+knowledge/generated/
+
+__pycache__/
+*.py[cod]
+.Python
+.venv/
+venv/

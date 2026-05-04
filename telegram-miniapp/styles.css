@@ -1,0 +1,350 @@
+/* Telegram Mini App — «Помощь в утилизации» */
+:root {
+  --bg: #0c1412;
+  --bg-card: rgba(22, 36, 32, 0.92);
+  --accent: #3ecf8e;
+  --accent-dim: #2a9d67;
+  --text: #e8f4ef;
+  --muted: #8fb3a8;
+  --danger: #ff6b6b;
+  --radius: 16px;
+  --font: "Manrope", system-ui, sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Фон: мягкий «эко» градиент */
+.bg-mesh {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(62, 207, 142, 0.22), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 80%, rgba(42, 157, 103, 0.15), transparent),
+    linear-gradient(165deg, #0c1412 0%, #111e1a 45%, #0a1210 100%);
+}
+
+.wrap {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: calc(12px + env(safe-area-inset-top, 0))
+    16px
+    calc(24px + env(safe-area-inset-bottom, 0));
+}
+
+header {
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+.icon-ring {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 0.75rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 32px rgba(62, 207, 142, 0.25);
+}
+
+.icon-ring svg {
+  width: 28px;
+  height: 28px;
+  fill: #0c1412;
+}
+
+h1 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 0.35rem;
+  line-height: 1.2;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.35rem;
+  border: 1px solid rgba(62, 207, 142, 0.12);
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(12px);
+}
+
+label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.45rem;
+}
+
+.input-row {
+  margin-bottom: 1.1rem;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(143, 179, 168, 0.35);
+  background: rgba(12, 20, 18, 0.7);
+  color: var(--text);
+  font-size: 1.05rem;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+}
+
+input[type="text"]::placeholder {
+  color: rgba(143, 179, 168, 0.55);
+}
+
+input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(62, 207, 142, 0.18);
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.35rem;
+  line-height: 1.35;
+}
+
+/* Зона загрузки фото */
+.upload-zone {
+  border: 2px dashed rgba(62, 207, 142, 0.35);
+  border-radius: 14px;
+  padding: 1.25rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin-bottom: 1rem;
+  background: rgba(62, 207, 142, 0.04);
+}
+
+.upload-zone:hover,
+.upload-zone.dragover {
+  border-color: var(--accent);
+  background: rgba(62, 207, 142, 0.09);
+}
+
+.upload-zone.has-file {
+  border-style: solid;
+  border-color: var(--accent-dim);
+}
+
+.upload-zone input[type="file"] {
+  display: none;
+}
+
+.upload-zone .big {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.upload-zone .small {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.preview {
+  margin-top: 0.85rem;
+  border-radius: 12px;
+  overflow: hidden;
+  max-height: 160px;
+  display: none;
+}
+
+.preview img {
+  width: 100%;
+  height: auto;
+  display: block;
+  vertical-align: middle;
+}
+
+.preview.visible {
+  display: block;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 1rem 1.25rem;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+  color: #042015;
+  box-shadow: 0 6px 24px rgba(62, 207, 142, 0.35);
+  transition: transform 0.15s, opacity 0.15s;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.result {
+  margin-top: 1.25rem;
+  display: none;
+}
+
+.result.visible {
+  display: block;
+}
+
+.result-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+
+.result-region {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+.result-region strong {
+  color: var(--text);
+}
+
+.verdict {
+  font-size: 1rem;
+  line-height: 1.55;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  background: rgba(62, 207, 142, 0.08);
+  border-left: 4px solid var(--accent);
+  white-space: pre-wrap;
+}
+
+.details-toggle {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  user-select: none;
+}
+
+.details {
+  display: none;
+  margin-top: 0.65rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.details.open {
+  display: block;
+}
+
+.details dl {
+  margin: 0;
+}
+
+.details dt {
+  font-weight: 700;
+  color: rgba(232, 244, 239, 0.85);
+  margin-top: 0.5rem;
+}
+
+.details dd {
+  margin: 0.15rem 0 0;
+}
+
+.err {
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(255, 107, 107, 0.12);
+  border: 1px solid rgba(255, 107, 107, 0.35);
+  color: #ffb4b4;
+  font-size: 0.85rem;
+  display: none;
+}
+
+.err.visible {
+  display: block;
+}
+
+.loader {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.loader.visible {
+  display: flex;
+}
+
+.loader span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: bounce 0.6s ease infinite alternate;
+}
+
+.loader span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.loader span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes bounce {
+  from {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}

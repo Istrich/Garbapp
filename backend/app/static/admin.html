@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Garbage App — админ</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; background: #f4f6f8; color: #1a1a1a; }
+    body { max-width: 840px; margin: 2rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.35rem; margin-bottom: 0.25rem; }
+    .muted { color: #555; font-size: 0.9rem; margin-bottom: 1rem; }
+    section { background: #fff; border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    label { display: block; font-weight: 600; margin: 0.75rem 0 0.35rem; font-size: 0.85rem; }
+    input[type="password"], input[type="text"], select, textarea {
+      width: 100%; padding: 0.5rem 0.65rem; border: 1px solid #ccd; border-radius: 6px; box-sizing: border-box;
+    }
+    textarea { font-family: inherit; font-size: 0.85rem; line-height: 1.45; resize: vertical; }
+    textarea.prompt-area { min-height: 120px; }
+    textarea.prompt-area.lg { min-height: 200px; }
+    .prompt-hint { font-weight: normal; font-size: 0.8rem; color: #666; margin: 0.25rem 0 0.35rem; display: block; }
+    input[type="file"] { margin-top: 0.35rem; }
+    .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
+    button { padding: 0.55rem 1rem; border-radius: 6px; border: none; cursor: pointer; font-weight: 600; }
+    button.primary { background: #1769aa; color: #fff; }
+    button.secondary { background: #e8eef5; color: #1769aa; }
+    button:disabled { opacity: 0.55; cursor: not-allowed; }
+    #log { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 8px; min-height: 5rem; margin-top: 1rem; }
+    .error { color: #ffb4b4; }
+    .ok { color: #98ec98; }
+    .districtCustomWrap { display: none; margin-top: 0.5rem; }
+    .districtCustomWrap.visible { display: block; }
+    label.checkbox { font-weight: normal; display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+    label.checkbox input { width: auto; }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #ccd;
+      margin: -0.25rem 0 1.25rem;
+    }
+    .tab-btn {
+      padding: 0.65rem 1rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.88rem;
+      color: #555;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: #1769aa; }
+    .tab-btn.active {
+      color: #1769aa;
+      border-bottom-color: #1769aa;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .verdict-box {
+      margin-top: 1rem;
+      padding: 1rem 1.15rem;
+      border-radius: 8px;
+      border-left: 4px solid #1769aa;
+      background: #f0f6fc;
+      font-size: 1.05rem;
+      line-height: 1.45;
+      min-height: 3rem;
+      white-space: pre-wrap;
+    }
+    .verdict-box.placeholder { color: #888; font-style: italic; background: #f8f9fa; border-left-color: #ccc; }
+    .vision-meta {
+      margin-top: 1rem;
+      font-size: 0.85rem;
+      color: #333;
+      background: #f8f9fa;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+    }
+    .vision-meta dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 1rem; }
+    .vision-meta dt { color: #666; font-weight: 600; }
+    .vision-meta dd { margin: 0; }
+    .rag-excerpts {
+      margin-top: 0.75rem;
+      font-size: 0.8rem;
+      color: #444;
+    }
+    .rag-excerpts h4 { margin: 0.5rem 0 0.35rem; font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+    .rag-excerpts ul { margin: 0; padding-left: 1.15rem; }
+    .rag-excerpts li { margin-bottom: 0.35rem; }
+    .preview-thumb {
+      margin-top: 0.5rem;
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      object-fit: contain;
+      background: #fafafa;
+    }
+    #testError { margin-top: 0.75rem; color: #b00020; font-size: 0.9rem; }
+    #promptStatus { margin-top: 0.75rem; font-size: 0.9rem; }
+    #promptStatus.error { color: #b00020; }
+    #promptStatus.ok { color: #0d6a2c; }
+    .token-block { margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #e8e8e8; }
+    .token-block label { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <h1>Админка</h1>
+  <p class="muted">Один сценарий: указываете <strong>почтовый индекс</strong> — backend находит <code>district_id</code> в <code>zip_codes.db</code>, сохраняет PDF и индексирует чанки с подписью района; при проверке фото снова даёте <strong>тот же индекс</strong> — RAG подтягивает правила именно этого района.</p>
+
+  <section>
+    <div class="token-block">
+      <label for="token">Admin-Token</label>
+      <input id="token" type="password" autocomplete="off" placeholder="GARBAGE_ADMIN_API_TOKEN / ADMIN_API_TOKEN" />
+      <p class="muted" style="margin:0.35rem 0 0; font-size:0.8rem;">Нужен для вкладок «Индексация PDF» и «Промпты ИИ».</p>
+    </div>
+
+    <nav class="tabs" role="tablist" aria-label="Разделы">
+      <button type="button" class="tab-btn active" role="tab" aria-selected="true" aria-controls="panel-rag" id="tab-rag" data-tab="rag">Индексация PDF</button>
+      <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-test" id="tab-test" data-tab="test">Тест по фото</button>
+      <button type="button" class="tab-btn" role="tab" aria-selected="false" aria-controls="panel-prompts" id="tab-prompts" data-tab="prompts">Промпты ИИ</button>
+    </nav>
+
+    <div id="panel-rag" class="tab-panel active" role="tabpanel" aria-labelledby="tab-rag">
+      <label for="ragZip">Почтовый индекс (для каталога и чанков)</label>
+      <span class="prompt-hint">Если указан — PDF сохраняется в <code>data/sources/&lt;district из БД&gt;/</code>, ingest помечает чанки тем же <code>district_id</code>, что и в <code>zip_codes.db</code>.</span>
+      <input id="ragZip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="например 0600031" maxlength="16" />
+
+      <label for="district">Район вручную (district_id)</label>
+      <span class="prompt-hint">Только если индекс пустой.</span>
+      <select id="district">
+        <option value="shinjuku">shinjuku (Синдзюку)</option>
+        <option value="minato">minato (Минато)</option>
+        <option value="chuo">chuo (Тюо)</option>
+        <option value="shibuya">shibuya (Сибуя)</option>
+        <option value="__custom__">Другой…</option>
+      </select>
+      <div id="districtCustomWrap" class="districtCustomWrap">
+        <label for="districtCustom">Свой district_id (латиница, snake_case)</label>
+        <input id="districtCustom" type="text" placeholder="например koto" />
+      </div>
+
+      <label for="pdf">PDF с правилами</label>
+      <input id="pdf" type="file" accept="application/pdf,.pdf" />
+
+      <label class="checkbox">
+        <input id="recreate" type="checkbox" />
+        Пересоздать коллекцию Qdrant перед заливкой (опасно при общей коллекции для нескольких районов)
+      </label>
+
+      <div class="row">
+        <button type="button" class="primary" id="btnUpload">Загрузить PDF</button>
+        <button type="button" class="secondary" id="btnIngest">Запустить ingest</button>
+      </div>
+
+      <strong style="display:block;margin-top:1.25rem;">Ответ API</strong>
+      <div id="log"></div>
+    </div>
+
+    <div id="panel-test" class="tab-panel" role="tabpanel" aria-labelledby="tab-test" hidden>
+      <label for="testZip">Почтовый индекс (Япония, 7 цифр)</label>
+      <span class="prompt-hint">Если указан — район берётся из <code>zip_codes.db</code> (приоритет). Формат: <code>0600031</code> или <code>060-0031</code>.</span>
+      <input id="testZip" type="text" inputmode="numeric" autocomplete="postal-code" placeholder="например 0600031" maxlength="16" />
+
+      <label for="testDistrict">Район вручную (district_id)</label>
+      <span class="prompt-hint">Используется только если поле индекса пустое — должен совпадать с <code>district_id</code> в Qdrant после ingest.</span>
+      <select id="testDistrict">
+        <option value="shinjuku">shinjuku (Синдзюку)</option>
+        <option value="minato">minato (Минато)</option>
+        <option value="chuo">chuo (Тюо)</option>
+        <option value="shibuya">shibuya (Сибуя)</option>
+        <option value="__custom__">Другой…</option>
+      </select>
+      <div id="testDistrictCustomWrap" class="districtCustomWrap">
+        <label for="testDistrictCustom">Свой district_id</label>
+        <input id="testDistrictCustom" type="text" placeholder="например koto" />
+      </div>
+
+      <label for="testPhoto">Фото предмета</label>
+      <input id="testPhoto" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" />
+      <img id="testPreview" class="preview-thumb" alt="" style="display:none;" />
+
+      <div class="row">
+        <button type="button" class="primary" id="btnAnalyze">Что делать с мусором?</button>
+      </div>
+
+      <p id="testError" hidden></p>
+
+      <div id="testResolvedWrap" style="display:none;margin-top:0.75rem;padding:0.65rem 0.85rem;background:#f0f7f4;border-radius:8px;font-size:0.88rem;">
+        <strong>Район по индексу / базе:</strong>
+        <span id="testResolvedLabel"></span>
+        <div class="prompt-hint" style="margin-top:0.35rem;"><code>district_id</code>: <span id="testResolvedId"></span></div>
+      </div>
+
+      <label style="margin-top:1rem;">Рекомендация</label>
+      <div id="testVerdict" class="verdict-box placeholder">Загрузите фото и нажмите кнопку — здесь появится ответ на русском.</div>
+
+      <div id="testVisionWrap" style="display:none;">
+        <div class="vision-meta">
+          <strong>Распознавание</strong>
+          <dl id="testVisionDl"></dl>
+        </div>
+      </div>
+
+      <div id="testRagWrap" class="rag-excerpts" style="display:none;">
+        <h4>Выдержки из правил (RAG)</h4>
+        <ul id="testRagList"></ul>
+      </div>
+    </div>
+
+    <div id="panel-prompts" class="tab-panel" role="tabpanel" aria-labelledby="tab-prompts" hidden>
+      <p class="muted" style="margin-top:0;">Сохраняется в <code>data/ai_prompts.json</code>. Следующий вызов «Тест по фото» подхватит без перезапуска API.</p>
+
+      <label for="visionSystem">Системный промпт — распознавание фото (Vision)</label>
+      <span class="prompt-hint">JSON: object, material, size_cm, is_clean. Обычно на английском.</span>
+      <textarea id="visionSystem" class="prompt-area lg" spellcheck="false"></textarea>
+
+      <label for="visionUser">Пользовательский текст к изображению (Vision)</label>
+      <span class="prompt-hint">Краткая инструкция вместе с фото.</span>
+      <textarea id="visionUser" class="prompt-area" spellcheck="false"></textarea>
+
+      <label for="verdictSystem">Системный промпт — итоговый ответ по мусору</label>
+      <span class="prompt-hint">На основе Vision и выдержек RAG из Qdrant.</span>
+      <textarea id="verdictSystem" class="prompt-area lg" spellcheck="false"></textarea>
+
+      <div class="row">
+        <button type="button" class="primary" id="btnSavePrompts">Сохранить промпты</button>
+        <button type="button" class="secondary" id="btnReloadPrompts">Обновить из файла</button>
+      </div>
+      <p id="promptStatus"></p>
+    </div>
+  </section>
+
+  <script>
+    const logEl = document.getElementById("log");
+
+    function log(msg, cls) {
+      const span = document.createElement("span");
+      if (cls) span.className = cls;
+      span.textContent = msg + "\n";
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function authHeaders() {
+      const t = document.getElementById("token").value.trim();
+      return {
+        "Admin-Token": t,
+        "X-Admin-Token": t,
+      };
+    }
+
+    /** @param {string} selSelectId @param {string} customInputId */
+    function resolveDistrict(selSelectId, customInputId) {
+      const sel = document.getElementById(selSelectId).value;
+      if (sel === "__custom__") {
+        const c = document.getElementById(customInputId).value.trim().toLowerCase();
+        if (!c) throw new Error("Укажите district_id для пункта «Другой».");
+        return c;
+      }
+      return sel;
+    }
+
+    document.getElementById("district").addEventListener("change", (e) => {
+      document.getElementById("districtCustomWrap").classList.toggle(
+        "visible",
+        e.target.value === "__custom__",
+      );
+    });
+
+    document.getElementById("testDistrict").addEventListener("change", (e) => {
+      document.getElementById("testDistrictCustomWrap").classList.toggle(
+        "visible",
+        e.target.value === "__custom__",
+      );
+    });
+
+    function applyTabVisibility(activeTab) {
+      document.querySelectorAll(".tab-btn").forEach((b) => {
+        const on = b.dataset.tab === activeTab;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      document.querySelectorAll(".tab-panel").forEach((p) => {
+        const show =
+          (activeTab === "rag" && p.id === "panel-rag") ||
+          (activeTab === "test" && p.id === "panel-test") ||
+          (activeTab === "prompts" && p.id === "panel-prompts");
+        p.classList.toggle("active", show);
+        p.hidden = !show;
+      });
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", activeTab);
+      window.history.replaceState({}, "", url.toString());
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        applyTabVisibility(btn.dataset.tab);
+      });
+    });
+
+    (function initTabFromQuery() {
+      const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab === "test" || tab === "prompts" || tab === "rag") {
+        applyTabVisibility(tab);
+      }
+    })();
+
+    const promptStatusEl = document.getElementById("promptStatus");
+    function setPromptStatus(msg, cls) {
+      promptStatusEl.textContent = msg || "";
+      promptStatusEl.className = cls || "";
+    }
+
+    async function loadPromptsFromServer() {
+      setPromptStatus("");
+      const res = await fetch(window.location.origin + "/api/v1/admin/prompts/analyze", {
+        method: "GET",
+        headers: authHeaders(),
+      });
+      const text = await res.text();
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = { detail: text };
+      }
+      if (!res.ok) {
+        const detail = body.detail;
+        const msg =
+          typeof detail === "string"
+            ? detail
+            : Array.isArray(detail)
+              ? detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+              : JSON.stringify(body);
+        throw new Error(res.status + " " + msg);
+      }
+      document.getElementById("visionSystem").value = body.vision_system_prompt || "";
+      document.getElementById("visionUser").value = body.vision_user_prompt || "";
+      document.getElementById("verdictSystem").value = body.verdict_system_prompt || "";
+      setPromptStatus("Промпты загружены с сервера.", "ok");
+    }
+
+    document.getElementById("btnReloadPrompts").addEventListener("click", async () => {
+      try {
+        await loadPromptsFromServer();
+      } catch (e) {
+        setPromptStatus(String(e.message || e), "error");
+      }
+    });
+
+    document.getElementById("btnSavePrompts").addEventListener("click", async () => {
+      setPromptStatus("");
+      const payload = {
+        vision_system_prompt: document.getElementById("visionSystem").value,
+        vision_user_prompt: document.getElementById("visionUser").value,
+        verdict_system_prompt: document.getElementById("verdictSystem").value,
+      };
+      const btn = document.getElementById("btnSavePrompts");
+      btn.disabled = true;
+      try {
+        const res = await fetch(window.location.origin + "/api/v1/admin/prompts/analyze", {
+          method: "PUT",
+          headers: { ...authHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const text = await res.text();
+        let body;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = { detail: text };
+        }
+        if (!res.ok) {
+          const detail = body.detail;
+          const msg =
+            typeof detail === "string"
+              ? detail
+              : Array.isArray(detail)
+                ? detail.map((d) => d.msg || JSON.stringify(d)).join("; ")
+                : JSON.stringify(body);
+          throw new Error(res.status + " " + msg);
+        }
+        setPromptStatus("Сохранено в data/ai_prompts.json.", "ok");
+      } catch (e) {
+        setPromptStatus(String(e.message || e), "error");
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById("btnUpload").addEventListener("click", async () => {
+      logEl.innerHTML = "";
+      try {
+        const ragZip = document.getElementById("ragZip").value.trim();
+        let districtId = "";
+        if (!ragZip) {
+          districtId = resolveDistrict("district", "districtCustom");
+        }
+        const fileInput = document.getElementById("pdf");
+        if (!fileInput.files || !fileInput.files[0]) {
+          throw new Error("Выберите PDF файл.");
+        }
+        const fd = new FormData();
+        if (ragZip) {
+          fd.append("zip_code", ragZip);
+          fd.append("district_id", "");
+        } else {
+          fd.append("district_id", districtId);
+          fd.append("zip_code", "");
+        }
+        fd.append("pdf", fileInput.files[0]);
+
+        const res = await fetch(window.location.origin + "/api/v1/admin/upload", {
+          method: "POST",
+          headers: authHeaders(),
+          body: fd,
+        });
+        const text = await res.text();
+        let body;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = text;
+        }
+        if (!res.ok) throw new Error(res.status + " " + JSON.stringify(body));
+
+        log("Загрузка OK:", "ok");
+        log(JSON.stringify(body, null, 2), "ok");
+      } catch (err) {
+        log(String(err.message || err), "error");
+      }
+    });
+
+    document.getElementById("btnIngest").addEventListener("click", async () => {
+      logEl.innerHTML = "";
+      try {
+        const ragZip = document.getElementById("ragZip").value.trim();
+        let districtId = "";
+        if (!ragZip) {
+          districtId = resolveDistrict("district", "districtCustom");
+        }
+        const recreate = document.getElementById("recreate").checked;
+        const base = window.location.origin + "/api/v1/admin/tasks/ingest";
+        const url = ragZip
+          ? `${base}?recreate=${recreate ? "true" : "false"}&zip_code=${encodeURIComponent(ragZip)}`
+          : `${base}/${encodeURIComponent(districtId)}?recreate=${recreate ? "true" : "false"}`;
+
+        const res = await fetch(url, {
+          method: "GET",
+          headers: authHeaders(),
+        });
+        const text = await res.text();
+        let body;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = text;
+        }
+        if (!res.ok) throw new Error(res.status + " " + JSON.stringify(body));
+
+        log("Ingest принят (фоновая задача FastAPI):", "ok");
+        log(JSON.stringify(body, null, 2), "ok");
+      } catch (err) {
+        log(String(err.message || err), "error");
+      }
+    });
+
+    const testPhotoInput = document.getElementById("testPhoto");
+    const testPreview = document.getElementById("testPreview");
+    testPhotoInput.addEventListener("change", () => {
+      const f = testPhotoInput.files && testPhotoInput.files[0];
+      if (!f) {
+        testPreview.style.display = "none";
+        testPreview.removeAttribute("src");
+        return;
+      }
+      const url = URL.createObjectURL(f);
+      testPreview.onload = () => URL.revokeObjectURL(url);
+      testPreview.src = url;
+      testPreview.style.display = "block";
+    });
+
+    document.getElementById("btnAnalyze").addEventListener("click", async () => {
+      const errEl = document.getElementById("testError");
+      const verdictEl = document.getElementById("testVerdict");
+      const visionWrap = document.getElementById("testVisionWrap");
+      const visionDl = document.getElementById("testVisionDl");
+      const ragWrap = document.getElementById("testRagWrap");
+      const ragList = document.getElementById("testRagList");
+      errEl.hidden = true;
+      errEl.textContent = "";
+
+      document.getElementById("testResolvedWrap").style.display = "none";
+      document.getElementById("testResolvedLabel").textContent = "";
+      document.getElementById("testResolvedId").textContent = "";
+
+      verdictEl.classList.add("placeholder");
+      verdictEl.textContent = "Запрос…";
+      visionWrap.style.display = "none";
+      ragWrap.style.display = "none";
+      visionDl.innerHTML = "";
+      ragList.innerHTML = "";
+
+      const zipVal = document.getElementById("testZip").value.trim();
+
+      let districtId = "";
+      if (!zipVal) {
+        try {
+          districtId = resolveDistrict("testDistrict", "testDistrictCustom");
+        } catch (e) {
+          verdictEl.textContent = "";
+          verdictEl.classList.add("placeholder");
+          errEl.textContent = e.message || String(e);
+          errEl.hidden = false;
+          return;
+        }
+      }
+
+      const fileInput = testPhotoInput;
+      if (!fileInput.files || !fileInput.files[0]) {
+        verdictEl.textContent = "";
+        verdictEl.classList.add("placeholder");
+        errEl.textContent = "Выберите файл изображения (JPEG, PNG или WebP).";
+        errEl.hidden = false;
+        return;
+      }
+
+      const btn = document.getElementById("btnAnalyze");
+      btn.disabled = true;
+
+      try {
+        const fd = new FormData();
+        if (zipVal) {
+          fd.append("zip_code", zipVal);
+          fd.append("district_id", "");
+        } else {
+          fd.append("district_id", districtId);
+          fd.append("zip_code", "");
+        }
+        fd.append("image", fileInput.files[0]);
+
+        const res = await fetch(window.location.origin + "/api/v1/analyze", {
+          method: "POST",
+          body: fd,
+        });
+        const text = await res.text();
+        let body;
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = { detail: text };
+        }
+        if (!res.ok) {
+          const msg = typeof body.detail === "string" ? body.detail : JSON.stringify(body);
+          throw new Error(res.status + " " + msg);
+        }
+
+        verdictEl.classList.remove("placeholder");
+        verdictEl.textContent = body.verdict_ru || "(пустой вердикт)";
+
+        if (body.district_label_ru) {
+          document.getElementById("testResolvedWrap").style.display = "block";
+          document.getElementById("testResolvedLabel").textContent = body.district_label_ru;
+          document.getElementById("testResolvedId").textContent = body.district_id || "";
+        }
+
+        const v = body.vision || {};
+        visionDl.innerHTML = "";
+        [
+          ["Предмет", v.object],
+          ["Материал", v.material],
+          ["Размер (см)", v.size_cm != null ? String(v.size_cm) : "—"],
+          ["Чистый / без остатков", v.is_clean ? "да" : "нет"],
+        ].forEach(([dt, dd]) => {
+          const dti = document.createElement("dt");
+          dti.textContent = dt;
+          const ddi = document.createElement("dd");
+          ddi.textContent = dd != null ? dd : "—";
+          visionDl.appendChild(dti);
+          visionDl.appendChild(ddi);
+        });
+        visionWrap.style.display = "block";
+
+        const excerpts = body.rag_excerpts || [];
+        if (excerpts.length) {
+          excerpts.forEach((ex) => {
+            const li = document.createElement("li");
+            li.textContent = ex;
+            ragList.appendChild(li);
+          });
+          ragWrap.style.display = "block";
+        }
+      } catch (err) {
+        verdictEl.classList.add("placeholder");
+        verdictEl.textContent = "Ошибка запроса.";
+        errEl.textContent = String(err.message || err);
+        errEl.hidden = false;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

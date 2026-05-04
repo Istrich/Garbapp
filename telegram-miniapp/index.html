@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c1412" />
+  <title>Помощь в утилизации</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- Задайте базовый URL API (HTTPS), если не используете ?api= в ссылке Mini App -->
+  <script>
+    window.__API_BASE__ = ""; /* например: "https://api.example.com" */
+  </script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+  <div class="wrap">
+    <header>
+      <div class="icon-ring" aria-hidden="true">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+      </div>
+      <h1>Помощь в утилизации</h1>
+      <p class="subtitle">Фото предмета и ваш почтовый индекс — подскажем категорию по правилам района.</p>
+    </header>
+
+    <section class="card">
+      <div class="input-row">
+        <label for="zip">Укажите ваш индекс</label>
+        <input
+          id="zip"
+          type="text"
+          inputmode="numeric"
+          autocomplete="postal-code"
+          maxlength="16"
+          placeholder="например 0600035 или 060-0035"
+        />
+        <p class="hint">7 цифр японского индекса. По нему определяется район и правила из базы.</p>
+      </div>
+
+      <label>Фото предмета</label>
+      <div class="upload-zone" id="uploadZone" role="button" tabindex="0">
+        <p class="big">Нажмите или перетащите фото</p>
+        <p class="small">JPEG, PNG или WebP</p>
+        <input id="photo" type="file" accept="image/jpeg,image/png,image/webp" />
+        <div class="preview" id="preview">
+          <img id="previewImg" alt="Предпросмотр" />
+        </div>
+      </div>
+
+      <button type="button" class="btn-primary" id="submitBtn">Как утилизировать</button>
+
+      <div class="loader" id="loader" aria-live="polite">
+        <span></span><span></span><span></span>
+        Анализируем…
+      </div>
+
+      <div class="err" id="error" role="alert"></div>
+
+      <div class="result" id="result">
+        <div class="result-badge">Рекомендация</div>
+        <div class="result-region" id="region"></div>
+        <div class="verdict" id="verdict"></div>
+        <div class="details-toggle" id="toggleDetails">Подробнее (распознавание)</div>
+        <div class="details" id="details"></div>
+      </div>
+    </section>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
